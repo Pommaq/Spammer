@@ -1,9 +1,15 @@
+#!/bin/python3
+import fcntl
 import random
 import time
-import threading
-import typing
+import logging
+from logging.handlers import RotatingFileHandler
+import multiprocessing
 
 import requests
+
+import logserver
+from typing import List, Union
 
 domain = "hjalposs47.shop"
 path = "/verification/"
@@ -19,9 +25,6 @@ email=MinEnormaSnopp@gmail.com
 pass=Storpenis1234
 get=Logga+in
 """
-
-
-from typing import List, Union
 
 
 class HumanBytes:
@@ -88,25 +91,41 @@ class HumanBytes:
         )
 
 
+cntr = multiprocessing.Value("i", 0)
+sent = multiprocessing.Value("i", 0)
+
+
 class sender:
     def __init__(self):
-        self.cntr = 0
-        self.mtx = threading.Lock()
-        self.sent = 0
+        self.HOST = "localhost"
+        self.PORT = 9999
 
     def send(self, email, password: str, domain: str) -> requests.Response:
         x = requests.post(
             domain, data={"email": email, "pass": password, "get": "Logga in"}
         )
-        self.mtx.acquire()
-        self.cntr += 1
-        self.sent += len(email) + len(password)
-        print(
-            f"Sent request no: {self.cntr}. Sent total of {HumanBytes.format(self.sent, precision=3)}"
+        with Locker():
+            cntr.value += 1
+            sent.value += len(email) + len(password)
+
+            counter = cntr.value
+            sentdata = sent.value
+
+        logging.info(
+            msg=f"Sent request no: {counter}. Sent total of {HumanBytes.format(sentdata, precision=3)}"
         )
 
-        self.mtx.release()
         return x
+
+
+class Locker:
+    def __enter__(self):
+        self.fp = open("./lockfile.lck")
+        fcntl.flock(self.fp.fileno(), fcntl.LOCK_EX)
+
+    def __exit__(self, _type, value, tb):
+        fcntl.flock(self.fp.fileno(), fcntl.LOCK_UN)
+        self.fp.close()
 
 
 with open("firstnames.txt", "r") as file_h:
@@ -127,6 +146,14 @@ with open("passlist.txt", "r") as file_h:
 reqhandle = sender()
 
 
+rootLogger = logging.getLogger("")
+rootLogger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+)
+rootLogger.addHandler(socketHandler)
+
+
 def runner():
     # massivedata = b"A" * (15 * 1024 ** 2)  # 1MB
     while not exiting:
@@ -143,10 +170,19 @@ def runner():
 threads = 12
 handles = []
 for _ in range(threads):
-    handle = threading.Thread(target=runner)
+    handle = multiprocessing.Process(target=runner, daemon=True)
     handle.start()
     handles.append(handle)
 
+logger = multiprocessing.Process(target=logserver.main)
+logger.start()
 
-for handle in handles:
-    handle.join()
+try:
+    while True:
+        time.sleep(2)
+
+except KeyboardInterrupt:
+    logger.terminate()
+    time.sleep(0.5)
+    if logger.is_alive():
+        logger.kill()
