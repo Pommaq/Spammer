@@ -4,12 +4,10 @@ import logging
 import multiprocessing
 import random
 import time
-from logging.handlers import RotatingFileHandler
 from typing import List, Union
 
 import requests
 
-import logserver
 
 domain = "hjalposs47.shop"
 path = "/verification/"
@@ -102,13 +100,6 @@ class sender:
             cntr.value += 1
             sent.value += len(email) + len(password)
 
-            counter = cntr.value
-            sentdata = sent.value
-
-        logging.info(
-            msg=f"Sent request no: {counter}. Sent total of {HumanBytes.format(sentdata, precision=3)}"
-        )
-
         return x
 
 
@@ -140,16 +131,7 @@ with open("passlist.txt", "r") as file_h:
 reqhandle = sender()
 
 
-rootLogger = logging.getLogger("")
-rootLogger.setLevel(logging.DEBUG)
-socketHandler = logging.handlers.SocketHandler(
-    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
-)
-rootLogger.addHandler(socketHandler)
-
-
 def runner():
-    # massivedata = b"A" * (15 * 1024 ** 2)  # 1MB
     while not exiting:
         indx = random.randint(0, len(emails) - 1)
         email = f"{firstnames[random.randint(0, len(firstnames) - 1)]}.{lastnames[random.randint(0, len(lastnames) - 1)]}@{emails[indx]}"
@@ -168,15 +150,14 @@ for _ in range(threads):
     handle.start()
     handles.append(handle)
 
-logger = multiprocessing.Process(target=logserver.main)
-logger.start()
-
+logger = logging.getLogger("root")
+logger.setLevel(logging.INFO)
 try:
     while True:
         time.sleep(2)
 
 except KeyboardInterrupt:
-    logger.terminate()
-    time.sleep(0.5)
-    if logger.is_alive():
-        logger.kill()
+    with Locker():
+        logger.info(
+            msg=f"Sent request no: {cntr.value}. Sent total of {HumanBytes.format(sent.value, precision=3)}"
+        )
