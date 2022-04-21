@@ -1,8 +1,9 @@
-import pickle
 import logging
 import logging.handlers
+import pickle
 import socketserver
 import struct
+from logging.handlers import RotatingFileHandler
 
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -78,8 +79,6 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 LOGFILE = "sent.log"
-
-from logging.handlers import RotatingFileHandler
 
 
 def main():

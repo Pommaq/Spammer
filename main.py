@@ -1,15 +1,15 @@
 #!/bin/python3
 import fcntl
+import logging
+import multiprocessing
 import random
 import time
-import logging
 from logging.handlers import RotatingFileHandler
-import multiprocessing
+from typing import List, Union
 
 import requests
 
 import logserver
-from typing import List, Union
 
 domain = "hjalposs47.shop"
 path = "/verification/"
@@ -66,10 +66,6 @@ class HumanBytes:
         unit_step = 1000 if metric else 1024
         unit_step_thresh = unit_step - HumanBytes.PRECISION_OFFSETS[precision]
 
-        is_negative = num < 0
-        if is_negative:  # Faster than ternary assignment or always running abs().
-            num = abs(num)
-
         for unit in unit_labels:
             if num < unit_step_thresh:
                 # VERY IMPORTANT:
@@ -86,9 +82,7 @@ class HumanBytes:
                 # and further down in the decimals, so it doesn't matter at all.
                 num /= unit_step
 
-        return HumanBytes.PRECISION_FORMATS[precision].format(
-            "-" if is_negative else "", num, unit
-        )
+        return HumanBytes.PRECISION_FORMATS[precision].format("", num, unit)
 
 
 cntr = multiprocessing.Value("i", 0)
@@ -102,7 +96,7 @@ class sender:
 
     def send(self, email, password: str, domain: str) -> requests.Response:
         x = requests.post(
-            domain, data={"email": email, "pass": password, "get": "Logga in"}
+            domain, data={"email": email, "pass": password, "get": "Logga in"}, allow_redirects=False
         )
         with Locker():
             cntr.value += 1
